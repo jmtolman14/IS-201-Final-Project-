@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gravity Sandbox</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #000;
+  overflow: hidden;
+}
+
+canvas {
+  display: block;
+  cursor: crosshair;
+}
+
+/* ── Nav Bar ────────────────────────────────────────────────────────────── */
+#navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 54px;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  z-index: 200;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+#nav-name {
+  font: 700 15px/1 'Arial', sans-serif;
+  color: #fff;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  text-shadow: 1px 1px 4px rgba(0,0,0,0.6);
+}
+
+#nav-links {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+#nav-links a {
+  font: 700 11px/1 'Arial', sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #fff;
+  text-decoration: none;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+  opacity: 0.9;
+  transition: opacity 0.15s;
+}
+
+#nav-links a:hover { opacity: 1; }
+
+#nav-links a.active {
+  border-bottom: 2px solid #fff;
+  padding-bottom: 1px;
+}
+
+/* ── Control Panel ─────────────────────────────────────────────────────── */
+#panel {
+  position: fixed;
+  top: 70px;
+  left: 16px;
+  background: rgba(6, 8, 16, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  color: #aaa;
+  font: 11px/1.5 'SF Mono', 'Fira Code', ui-monospace, 'Courier New', monospace;
+  user-select: none;
+  backdrop-filter: blur(8px);
+  z-index: 100;
+  min-width: 216px;
+}
+
+#panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 13px 10px 13px;
+  cursor: pointer;
+  gap: 24px;
+}
+
+#panel-title {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #555;
+  white-space: nowrap;
+}
+
+#panel-arrow {
+  color: #444;
+  font-size: 9px;
+  flex-shrink: 0;
+  transition: transform 0.25s ease;
+}
+
+#panel.collapsed #panel-arrow {
+  transform: rotate(180deg);
+}
+
+#panel-body {
+  padding: 2px 13px 13px;
+}
+
+#panel.collapsed #panel-body {
+  display: none;
+}
+
+.row {
+  margin-bottom: 11px;
+}
+
+.row-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  color: #777;
+}
+
+.row-label .val {
+  color: #ddd;
+  min-width: 28px;
+  text-align: right;
+}
+
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 1px;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #5b9ef8;
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+
+input[type=range]::-webkit-slider-thumb:hover {
+  transform: scale(1.35);
+  box-shadow: 0 0 6px rgba(91, 158, 248, 0.6);
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.toggle-label {
+  color: #777;
+}
+
+/* Toggle switch */
+.sw {
+  position: relative;
+  width: 32px;
+  height: 17px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.sw input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.sw-track {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 9px;
+  transition: background 0.2s;
+}
+
+.sw input:checked ~ .sw-track {
+  background: rgba(91, 158, 248, 0.5);
+}
+
+.sw-thumb {
+  position: absolute;
+  top: 2.5px;
+  left: 2.5px;
+  width: 12px;
+  height: 12px;
+  background: #888;
+  border-radius: 50%;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.sw input:checked ~ .sw-thumb {
+  transform: translateX(15px);
+  background: #fff;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  margin: 8px 0 10px;
+}
+
+.btn-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.btn-row:last-child {
+  margin-bottom: 0;
+}
+
+.btn {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: #999;
+  padding: 5px 7px;
+  border-radius: 5px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  text-align: center;
+  transition: background 0.14s, color 0.14s, border-color 0.14s;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  background: rgba(255, 255, 255, 0.11);
+  color: #eee;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.btn.active {
+  background: rgba(91, 158, 248, 0.18);
+  border-color: rgba(91, 158, 248, 0.38);
+  color: #5b9ef8;
+}
+
+/* ── Stats ──────────────────────────────────────────────────────────────── */
+#stats {
+  position: fixed;
+  bottom: 14px;
+  right: 16px;
+  font: 10px/1.9 'SF Mono', 'Fira Code', ui-monospace, 'Courier New', monospace;
+  color: rgba(255, 255, 255, 0.2);
+  text-align: right;
+  z-index: 100;
+  pointer-events: none;
+}
+
+/* ── Hint ───────────────────────────────────────────────────────────────── */
+#hint {
+  position: fixed;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font: 10px 'SF Mono', 'Fira Code', ui-monospace, 'Courier New', monospace;
+  color: rgba(255, 255, 255, 0.16);
+  pointer-events: none;
+  z-index: 100;
+  transition: opacity 1.5s ease;
+  white-space: nowrap;
+  letter-spacing: 0.05em;
+}
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<nav id="navbar">
+  <span id="nav-name">Jack Tolman</span>
+  <div id="nav-links">
+    <a href="../index.html">Home</a>
+    <a href="../education.html">Education</a>
+    <a href="../experience.html">Experience</a>
+    <a href="../skills.html">Skills</a>
+    <a href="../contact.html">Contact</a>
+    <a href="../scratch.html">Scratch</a>
+    <a href="gravity-sandbox.html" class="active">Gravity Simulator</a>
+  </div>
+</nav>
+
+<div id="panel">
+  <div id="panel-header">
+    <span id="panel-title">Gravity Sandbox</span>
+    <span id="panel-arrow">▲</span>
+  </div>
+  <div id="panel-body">
+    <div class="row">
+      <div class="row-label"><span>Gravity (G)</span><span class="val" id="lbl-g">100</span></div>
+      <input type="range" id="sl-g" min="5" max="800" value="100">
+    </div>
+    <div class="row">
+      <div class="row-label"><span>Planet size</span><span class="val" id="lbl-r">10</span></div>
+      <input type="range" id="sl-r" min="3" max="45" value="10">
+    </div>
+    <div class="toggle-row">
+      <span class="toggle-label">Trails</span>
+      <label class="sw">
+        <input type="checkbox" id="tog-trails" checked>
+        <div class="sw-track"></div>
+        <div class="sw-thumb"></div>
+      </label>
+    </div>
+    <hr class="divider">
+    <div class="btn-row">
+      <button class="btn" id="btn-pause">⏸ Pause</button>
+      <button class="btn" id="btn-clear">✕ Clear</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="btn-binary">⊙ Binary System</button>
+    </div>
+  </div>
+</div>
+
+<div id="stats">
+  <div id="s-fps">60 fps</div>
+  <div id="s-bodies">0 bodies</div>
+</div>
+
+<div id="hint">drag to launch &nbsp;·&nbsp; space to pause &nbsp;·&nbsp; c to clear</div>
+
+<script>
+'use strict';
+
+// ─── Canvas setup ────────────────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H;
+
+function resize() {
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ─── Sim state ───────────────────────────────────────────────────────────────
+let G          = 100;
+let newR       = 10;
+let showTrails = true;
+let paused     = false;
+
+let planets = [];
+let flashes = [];
+let uid     = 0;
+let simFrame = 0;
+
+// ─── Static starfield ────────────────────────────────────────────────────────
+const NSTARS = 260;
+const stars  = Array.from({ length: NSTARS }, () => ({
+  x: Math.random(),
+  y: Math.random(),
+  r: Math.pow(Math.random(), 2.2) * 1.6 + 0.15,
+  a: Math.random() * 0.55 + 0.1,
+}));
+
+// ─── Planet helpers ──────────────────────────────────────────────────────────
+function massOf(r)   { return r * r * Math.PI; }
+function radiusOf(m) { return Math.sqrt(m / Math.PI); }
+
+// Color palette: [radius threshold → hsl target]
+const PALETTE = [
+  { at:  0, h: 198, s: 70, l: 93 },  // tiny   → ice white
+  { at:  7, h: 210, s: 80, l: 76 },  // small  → cool blue
+  { at: 16, h:  50, s: 95, l: 66 },  // medium → yellow
+  { at: 28, h:  28, s: 96, l: 56 },  // large  → orange
+  { at: 48, h:  12, s: 90, l: 44 },  // big    → red-orange
+  { at: 78, h:   0, s: 80, l: 30 },  // giant  → deep red
+];
+
+function lerpColor(r) {
+  let i = 0;
+  while (i < PALETTE.length - 2 && r >= PALETTE[i + 1].at) i++;
+  const a = PALETTE[i], b = PALETTE[i + 1];
+  const t = Math.max(0, Math.min(1, (r - a.at) / (b.at - a.at)));
+  return { h: a.h + (b.h - a.h) * t, s: a.s + (b.s - a.s) * t, l: a.l + (b.l - a.l) * t };
+}
+
+function hsla(c, alpha = 1) {
+  return `hsla(${c.h | 0},${c.s | 0}%,${c.l | 0}%,${alpha})`;
+}
+
+function makePlanet(x, y, vx, vy, r) {
+  return {
+    id: uid++,
+    x, y, vx, vy,
+    r,
+    m:   massOf(r),
+    col: lerpColor(r),
+    trail: [],   // flat: [x0,y0, x1,y1, ...]
+  };
+}
+
+// ─── Physics step ────────────────────────────────────────────────────────────
+const TRAIL_MAX  = 160; // positions kept
+const TRAIL_SKIP = 2;   // record every N frames
+
+function step(dt) {
+  if (paused || dt <= 0) return;
+  dt = Math.min(dt, 0.05); // clamp to 50 ms
+
+  // Record trail positions
+  if (showTrails && (++simFrame % TRAIL_SKIP === 0)) {
+    for (const p of planets) {
+      p.trail.push(p.x, p.y);
+      if (p.trail.length > TRAIL_MAX * 2) p.trail.splice(0, 2);
+    }
+  }
+
+  const n = planets.length;
+
+  // Gravity — Plummer-softened: F = G·m1·m2·Δr / (|Δr|²+ε²)^(3/2)
+  for (let i = 0; i < n; i++) {
+    const a = planets[i];
+    for (let j = i + 1; j < n; j++) {
+      const b    = planets[j];
+      const dx   = b.x - a.x;
+      const dy   = b.y - a.y;
+      const r2   = dx * dx + dy * dy;
+      const eps  = (a.r + b.r) * 0.5;       // softening length
+      const soft = r2 + eps * eps;
+      const inv  = 1 / (soft * Math.sqrt(soft)); // 1/(r²+ε²)^(3/2)
+      const fG   = G * inv;
+      const fx   = fG * dx;
+      const fy   = fG * dy;
+      a.vx += fx * b.m * dt;
+      a.vy += fy * b.m * dt;
+      b.vx -= fx * a.m * dt;
+      b.vy -= fy * a.m * dt;
+    }
+  }
+
+  // Integrate
+  for (const p of planets) {
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+  }
+
+  // Collisions → merge (loop until no overlaps remain)
+  let again = true;
+  while (again) {
+    again = false;
+    outer:
+    for (let i = 0; i < planets.length; i++) {
+      for (let j = i + 1; j < planets.length; j++) {
+        const a = planets[i], b = planets[j];
+        const dx = b.x - a.x, dy = b.y - a.y;
+        if (dx * dx + dy * dy >= (a.r + b.r) * (a.r + b.r)) continue;
+
+        // Larger body absorbs smaller
+        const big = a.m >= b.m ? a : b;
+        const sml = a.m >= b.m ? b : a;
+        const tm  = big.m + sml.m;
+
+        // Flash at center of mass
+        flashes.push({
+          x: (big.x * big.m + sml.x * sml.m) / tm,
+          y: (big.y * big.m + sml.y * sml.m) / tm,
+          r: Math.max(big.r, sml.r) * 3.5,
+          t: 1.0,
+        });
+
+        // Conserve momentum, update position to COM
+        big.x  = (big.x * big.m + sml.x * sml.m) / tm;
+        big.y  = (big.y * big.m + sml.y * sml.m) / tm;
+        big.vx = (big.vx * big.m + sml.vx * sml.m) / tm;
+        big.vy = (big.vy * big.m + sml.vy * sml.m) / tm;
+        big.m  = tm;
+        big.r  = radiusOf(tm);
+        big.col = lerpColor(big.r);
+
+        planets.splice(planets.indexOf(sml), 1);
+        again = true;
+        break outer;
+      }
+    }
+  }
+
+  // Tick flashes
+  for (let i = flashes.length - 1; i >= 0; i--) {
+    flashes[i].t -= dt * 3.5;
+    if (flashes[i].t <= 0) flashes.splice(i, 1);
+  }
+}
+
+// ─── Draw helpers ────────────────────────────────────────────────────────────
+function drawBackground() {
+  ctx.fillStyle = '#030508';
+  ctx.fillRect(0, 0, W, H);
+  for (const s of stars) {
+    ctx.beginPath();
+    ctx.arc(s.x * W, s.y * H, s.r, 0, 6.2832);
+    ctx.fillStyle = `rgba(255,255,255,${s.a})`;
+    ctx.fill();
+  }
+}
+
+function drawTrail(p) {
+  const tr = p.trail;
+  const n  = tr.length >> 1; // number of points
+  if (n < 2) return;
+  const c = p.col;
+  for (let i = 1; i < n; i++) {
+    const t   = i / n;
+    const t2  = t * t;
+    const lw  = Math.max(0.5, p.r * 0.25 * t);
+    ctx.beginPath();
+    ctx.moveTo(tr[(i - 1) * 2],     tr[(i - 1) * 2 + 1]);
+    ctx.lineTo(tr[i * 2],           tr[i * 2 + 1]);
+    ctx.strokeStyle = `hsla(${c.h | 0},${c.s | 0}%,${c.l | 0}%,${t2 * 0.42})`;
+    ctx.lineWidth   = lw;
+    ctx.stroke();
+  }
+}
+
+function drawPlanet(p) {
+  const { x, y, r, col } = p;
+
+  // Soft glow
+  const glow = ctx.createRadialGradient(x, y, r * 0.4, x, y, r * 3.2);
+  glow.addColorStop(0, hsla(col, 0.16));
+  glow.addColorStop(1, hsla(col, 0));
+  ctx.beginPath();
+  ctx.arc(x, y, r * 3.2, 0, 6.2832);
+  ctx.fillStyle = glow;
+  ctx.fill();
+
+  // Sphere body with highlight
+  const hiCol  = { h: col.h, s: col.s * 0.55, l: Math.min(col.l + 32, 95) };
+  const rimCol = { h: col.h + 6, s: col.s, l: col.l * 0.5 };
+  const body   = ctx.createRadialGradient(x - r * 0.32, y - r * 0.38, r * 0.04, x, y, r);
+  body.addColorStop(0,   hsla(hiCol));
+  body.addColorStop(0.55, hsla(col));
+  body.addColorStop(1,   hsla(rimCol));
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, 6.2832);
+  ctx.fillStyle = body;
+  ctx.fill();
+}
+
+function drawFlashes() {
+  for (const f of flashes) {
+    const ease = f.t * f.t;           // ease out
+    const rad  = f.r * (1.8 - f.t * 0.8);
+    const g    = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, rad);
+    g.addColorStop(0,    `rgba(255,235,180,${ease * 0.95})`);
+    g.addColorStop(0.3,  `rgba(255,145,40,${ease * 0.55})`);
+    g.addColorStop(0.75, `rgba(255,60,0,${ease * 0.2})`);
+    g.addColorStop(1,    'rgba(255,30,0,0)');
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, rad, 0, 6.2832);
+    ctx.fillStyle = g;
+    ctx.fill();
+  }
+}
+
+// ─── Drag / launch ───────────────────────────────────────────────────────────
+let dragging = false;
+let dragX0 = 0, dragY0 = 0;
+let dragX1 = 0, dragY1 = 0;
+
+const VEL_SCALE = 0.22; // pixels of drag → pixels/s velocity
+
+function drawDrag() {
+  if (!dragging) return;
+  const dx  = dragX0 - dragX1;
+  const dy  = dragY0 - dragY1;
+  const len = Math.hypot(dx, dy);
+
+  // Preview circle at spawn point
+  const preCol = lerpColor(newR);
+  ctx.beginPath();
+  ctx.arc(dragX0, dragY0, newR, 0, 6.2832);
+  ctx.strokeStyle = hsla(preCol, 0.65);
+  ctx.lineWidth   = 1.5;
+  ctx.stroke();
+
+  if (len < 4) return;
+
+  // Aim line (direction planet will travel)
+  const ex = dragX0 + dx;
+  const ey = dragY0 + dy;
+  ctx.beginPath();
+  ctx.moveTo(dragX0, dragY0);
+  ctx.lineTo(ex, ey);
+  ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+  ctx.lineWidth   = 1;
+  ctx.setLineDash([3, 6]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Arrowhead
+  const ang = Math.atan2(dy, dx);
+  const al  = Math.min(13, len * 0.28);
+  ctx.beginPath();
+  ctx.moveTo(ex, ey);
+  ctx.lineTo(ex - al * Math.cos(ang - 0.42), ey - al * Math.sin(ang - 0.42));
+  ctx.moveTo(ex, ey);
+  ctx.lineTo(ex - al * Math.cos(ang + 0.42), ey - al * Math.sin(ang + 0.42));
+  ctx.strokeStyle = 'rgba(255,255,255,0.42)';
+  ctx.lineWidth   = 1.5;
+  ctx.stroke();
+}
+
+// ─── Stats tracking ──────────────────────────────────────────────────────────
+let fpsBuf        = [];
+let lastStatsTime = 0;
+const sFPS    = document.getElementById('s-fps');
+const sBodies = document.getElementById('s-bodies');
+
+function updateStats(now) {
+  fpsBuf.push(now);
+  if (fpsBuf.length > 90) fpsBuf.shift();
+  if (now - lastStatsTime > 350) {
+    lastStatsTime = now;
+    const span = fpsBuf[fpsBuf.length - 1] - fpsBuf[0];
+    const fps  = span > 0 ? Math.round((fpsBuf.length - 1) / span * 1000) : 60;
+    sFPS.textContent    = `${fps} fps`;
+    sBodies.textContent = `${planets.length} bod${planets.length === 1 ? 'y' : 'ies'}`;
+  }
+}
+
+// ─── Main loop ───────────────────────────────────────────────────────────────
+let lastT = 0;
+
+function loop(t) {
+  const dt = (t - lastT) / 1000;
+  lastT = t;
+
+  updateStats(t);
+  step(dt);
+
+  drawBackground();
+  if (showTrails) for (const p of planets) drawTrail(p);
+  drawFlashes();
+  for (const p of planets) drawPlanet(p);
+  drawDrag();
+
+  requestAnimationFrame(loop);
+}
+
+requestAnimationFrame(t => { lastT = t; requestAnimationFrame(loop); });
+
+// ─── Interaction: mouse ──────────────────────────────────────────────────────
+canvas.addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  dragging = true;
+  dragX0 = dragX1 = e.clientX;
+  dragY0 = dragY1 = e.clientY;
+});
+
+canvas.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  dragX1 = e.clientX;
+  dragY1 = e.clientY;
+});
+
+canvas.addEventListener('mouseup', e => {
+  if (!dragging || e.button !== 0) return;
+  dragging = false;
+  const vx = (dragX0 - e.clientX) * VEL_SCALE;
+  const vy = (dragY0 - e.clientY) * VEL_SCALE;
+  planets.push(makePlanet(dragX0, dragY0, vx, vy, newR));
+});
+
+canvas.addEventListener('mouseleave', () => { dragging = false; });
+
+// ─── Interaction: touch ──────────────────────────────────────────────────────
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  dragging = true;
+  dragX0 = dragX1 = t.clientX;
+  dragY0 = dragY1 = t.clientY;
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  dragX1 = t.clientX;
+  dragY1 = t.clientY;
+}, { passive: false });
+
+canvas.addEventListener('touchend', e => {
+  e.preventDefault();
+  if (!dragging) return;
+  dragging = false;
+  const t  = e.changedTouches[0];
+  const vx = (dragX0 - t.clientX) * VEL_SCALE;
+  const vy = (dragY0 - t.clientY) * VEL_SCALE;
+  planets.push(makePlanet(dragX0, dragY0, vx, vy, newR));
+}, { passive: false });
+
+// ─── Keyboard shortcuts ──────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.code === 'Space') { e.preventDefault(); togglePause(); }
+  if (e.code === 'KeyC')  clearAll();
+});
+
+// ─── Control actions ─────────────────────────────────────────────────────────
+const btnPause = document.getElementById('btn-pause');
+
+function togglePause() {
+  paused = !paused;
+  btnPause.textContent = paused ? '▶ Resume' : '⏸ Pause';
+  btnPause.classList.toggle('active', paused);
+}
+
+function clearAll() {
+  planets = [];
+  flashes = [];
+}
+
+document.getElementById('sl-g').addEventListener('input', function () {
+  G = +this.value;
+  document.getElementById('lbl-g').textContent = G;
+});
+
+document.getElementById('sl-r').addEventListener('input', function () {
+  newR = +this.value;
+  document.getElementById('lbl-r').textContent = newR;
+});
+
+document.getElementById('tog-trails').addEventListener('change', function () {
+  showTrails = this.checked;
+  if (!showTrails) planets.forEach(p => (p.trail = []));
+});
+
+btnPause.addEventListener('click', togglePause);
+document.getElementById('btn-clear').addEventListener('click', clearAll);
+
+// Binary preset — two bodies in a stable mutual orbit
+document.getElementById('btn-binary').addEventListener('click', () => {
+  const cx  = W / 2, cy = H / 2;
+  const r1  = 20, r2 = 15;
+  const m1  = massOf(r1), m2 = massOf(r2);
+  const sep = 170;
+  const tm  = m1 + m2;
+  // Distance of each body from center of mass
+  const d1  = sep * m2 / tm;
+  const d2  = sep * m1 / tm;
+  // Circular-orbit velocity: F_grav = F_centripetal
+  // G·m1·m2/sep² = m·v²/(sep·mOther/tm)  →  v = sqrt(G·mOther²/(tm·sep))
+  const v1  = Math.sqrt(G * m2 * m2 / (tm * sep));
+  const v2  = Math.sqrt(G * m1 * m1 / (tm * sep));
+  // Place horizontally, give perpendicular velocities
+  planets.push(makePlanet(cx - d1, cy,  0, -v1, r1));
+  planets.push(makePlanet(cx + d2, cy,  0,  v2, r2));
+});
+
+// Panel collapse / expand
+document.getElementById('panel-header').addEventListener('click', () => {
+  document.getElementById('panel').classList.toggle('collapsed');
+});
+
+// Fade hint after 6 s
+setTimeout(() => {
+  const el = document.getElementById('hint');
+  el.style.opacity = '0';
+  setTimeout(() => el.remove(), 1600);
+}, 6000);
+</script>
+</body>
+</html>
